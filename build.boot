@@ -6,8 +6,11 @@
   '[[org.clojure/clojure "1.7.0-alpha5"]
     [org.clojure/core.async "0.1.346.0-17112a-alpha"]
     
+    [org.jsoup/jsoup "1.8.1"]
+    [clojurewerkz/urly "1.0.0"]
+    [clj-robots "0.6.0"]
     [clj-time "0.9.0"]
-    [http-kit "2.1.18"]
+    [http-kit "2.1.19"]
 
     [org.clojure/core.memoize "0.5.6"]
     [org.clojure/core.cache "0.6.4"]
@@ -15,12 +18,9 @@
     [com.taoensso/timbre "3.4.0"]])
 
 (def dev-dependencies
-  '[[weasel "0.6.0-SNAPSHOT"]
-    [com.cemerick/piggieback "0.1.5"]
+  '[[org.clojure/tools.nrepl "0.2.7"]
 
-    [org.clojure/tools.nrepl "0.2.7"]
-
-    [com.cemerick/double-check "0.6.1"]])
+    [org.clojure/test.check "0.7.0"]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global config
