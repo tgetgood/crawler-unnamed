@@ -1,24 +1,38 @@
 # Crawler as yet without a Name
 
-The intent of this projet is to create a fully asyncronous,
-customisable webcrawler. Think nutch without XML config
-files. ustomisation should be the plugging in of your own functions at
-key points, not a verbose DSL.
+The intent of this projet is to create a fully asyncronous, production
+quality, customisable webcrawler in Clojure. Think nutch without XML
+config files. Customisation should be the plugging in of your own
+functions at key points, not a verbose DSL.
+
+## Goals
+
+* Web crawling should produce a stream of events (retrieved pages) to
+  be dealt with as you like. The retrieved pages shouldn't be tied to
+  the retrieval logic (think nutch's crawl then index workflow with
+  everything encoded away in a hadoop filesystem; that's what I'm
+  trying to avoid).
+* If you want to dump your crawl results to a JSON file, you should be
+  able to, but for non-trivial applications you need a way to deal
+  with pages individually.
+* There are many different uses for web crawlers: archiving, periodic
+  scanning for indexing, continuous monitoring for alerts, etc.. These
+  different behaviours should be acheivable by plugging policies
+  (functions) into a common framework.
+* High-level tools: authors of crawler policies shouldn't have to
+  write logic to read cache headers, or handle robot policies unless
+  they want to do something new / arcane.
+* Orthogonality: e.g. you should be able to change a crawler's robots
+  policy from one interpretation of the "standard" to another without
+  changing anything else.
 
 ## Requirements
 
 * Full robots.txt compliance (possibly with choice from multiple
   interpretations).
 * Designed for distribution across many machines.
-* Crash-only software design.
-* Logical sandboxing of domains being crawled so as to
-  1. Simplify robots.txt compliance.
-  2. Give a meaningful answer to "How up to date is our model of
-     example.com?"
-* Pluggable logic for:
-  1. Filtering urls to crawl.
-  2. Gathering links out of html.
-  3. Handling scraped pages. 
+* Simple clojuresque configuration.
+* Pluggable logic for different applications / styles of web crawling.
 
 ## Usage
 
@@ -26,13 +40,10 @@ FIXME
 
 ## Credit
 
-This project will make use of code from a number of open source
-projects, sometimes copying the code rather than importing it along
-with a lot of other unneeded functionality.
+Code and ideas have been taken from the following libraries. More or
+less copied code is cited in the source files themselves.
 
-List:
-
-* (Itsy)[https://gihub.com/dakrone/itsy]
+* (Itsy) [https://gihub.com/dakrone/itsy]
 * (Crawlista) [https://github.com/michaelklishin/crawlista]
 
 ## License
