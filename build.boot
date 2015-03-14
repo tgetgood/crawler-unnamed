@@ -19,6 +19,7 @@
 
 (def dev-dependencies
   '[[org.clojure/tools.nrepl "0.2.7"]
+    [org.clojure/tools.namespace "0.2.10"]
 
     [org.clojure/test.check "0.7.0"]])
 
@@ -30,7 +31,17 @@
 (def version "0.1.0")
 
 (set-env! :source-paths #{"src"}
-          :dependencies dependencies)
+          :dependencies (into [] (concat dependencies dev-dependencies)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Dev functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require '[clojure.tools.namespace.repl :as repl])
+
+(defn refresh-repl []
+  (apply repl/set-refresh-dirs (get-env :directories))
+  (repl/refresh))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tasks
@@ -47,11 +58,4 @@
          conj 'cider.nrepl/cider-middleware)
   identity)
 
-(deftask dev
-  "Runs a repl primed with dev dependencies."
-  [c cider-nrepl bool "Start repl with cider-nrepl middleware"]
-  (let [{:keys [cider-nrepl]} *opts*]
-    (set-env! :dependencies #(into [] (concat % dev-dependencies)))
-    (comp
-     (if cider-nrepl (cider) identity)
-     (repl))))
+;; TODO: Jar, deploy, test. Production pod without dev deps
