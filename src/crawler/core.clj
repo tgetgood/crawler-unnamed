@@ -39,19 +39,19 @@
                         link-extraction-fn
                         (tap-it fetched-mult))
         
-        ;; Pass new links back to the 
+        ;; Pass new links back to the fetch queue 
         (async/pipe (flatten-channel new-link-ch)
                     (as-ch (partial enqueue crawl-strategy fetch-q)))))))
 
+(def default-options
+  {:queue-length 10000
+   
+   })
 
 (defn crawler
-  [{:keys [seed-urls
-           default-crawl-delay
-           domain-filter-fn
-           link-extractor-fn
-           queue-size
-           user-agent
-           handler] :or {:default-crawl-delay 1
-                         :link-extractor-fn get-all-links
-                         }}])
+  "Returns a channel which will queue URLs for crawling. This should
+  be used for (re)seeding the search."
+  [& [opts]]
+  (let [options (merge (or opts {}) default-options)]
+    (crawler* options)))
 

@@ -43,8 +43,8 @@ FIXME
 Code and ideas have been taken from the following libraries. More or
 less copied code is cited in the source files themselves.
 
-* (Itsy) [https://gihub.com/dakrone/itsy]
-* (Crawlista) [https://github.com/michaelklishin/crawlista]
+* [Itsy](https://gihub.com/dakrone/itsy)
+* [Crawlista](https://github.com/michaelklishin/crawlista)
 
 ## License
 
