@@ -27,7 +27,7 @@
 ;; Global config
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def project-name "crawler")
+(def project-name "formic")
 (def version "0.1.0")
 
 (set-env! :source-paths #{"src"}
