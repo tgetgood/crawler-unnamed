@@ -1,4 +1,4 @@
-(ns crawler.links
+(ns formic.links
   (:require [clojurewerkz.urly.core :as urly])
     (:import org.jsoup.Jsoup
              [org.jsoup.nodes Document Element]))

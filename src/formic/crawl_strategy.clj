@@ -1,9 +1,9 @@
-(ns crawler.crawl-strategy
+(ns formic.crawl-strategy
   (:require [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]
             [clojurewerkz.urly.core :as urly]
 
-            [crawler.robots :refer [crawlable? crawl-delay]]
-            [crawler.url-filter :refer [crawl?]]
+            [formic.robots :refer [crawlable? crawl-delay]]
+            [formic.url-filter :refer [crawl?]]
             ))
 
 (defprotocol CrawlStrategy

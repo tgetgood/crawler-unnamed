@@ -1,4 +1,4 @@
-(ns crawler.url-filter
+(ns formic.url-filter
   (:require [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]
 
             [metrics.core :refer [new-registry]]

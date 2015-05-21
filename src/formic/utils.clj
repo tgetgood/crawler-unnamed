@@ -1,4 +1,4 @@
-(ns crawler.utils
+(ns formic.utils
   (require [org.httpkit.client :as http]
            [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]))
 
@@ -40,5 +40,7 @@
 
 (defn fetch
   "Asynchronously fetches URL and places response map on res-ch"
-  [url res-ch]
-  (http/get url (fn [x] (put! res-ch x) (async/close! res-ch))))
+  [url]
+  (let [res (chan)]
+    (http/get url (fn [x] (put! res x) (async/close! res)))
+    res))
