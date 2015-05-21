@@ -14,7 +14,7 @@ functions at key points, not a verbose DSL.
   trying to avoid).
 * If you want to dump your crawl results to a JSON file, you should be
   able to, but for non-trivial applications you need a way to deal
-  with pages individually.
+  with pages as they come.
 * There are many different uses for web crawlers: archiving, periodic
   scanning for indexing, continuous monitoring for alerts, etc.. These
   different behaviours should be acheivable by plugging policies
@@ -30,9 +30,9 @@ functions at key points, not a verbose DSL.
 
 * Full robots.txt compliance (possibly with choice from multiple
   interpretations).
-* Designed for distribution across many machines.
-* Simple clojuresque configuration.
 * Pluggable logic for different applications / styles of web crawling.
+* Simple declarative configuration.
+* Designed for distribution across many machines.
 
 ## Usage
 
