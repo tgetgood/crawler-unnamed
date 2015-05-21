@@ -47,15 +47,33 @@
 ;; Tasks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Lifted from https://github.com/boot-clj/boot/wiki/Cider-REPL
 (deftask cider
   "Add middleware for EMACS Cider integration"
   []
   (require 'boot.repl)
   (swap! boot.repl/*default-dependencies*
-         concat ['[cider/cider-nrepl "0.8.2"]])
+         conj '[cider/cider-nrepl "0.8.2"])
 
   (swap! boot.repl/*default-middleware*
-         conj 'cider.nrepl/cider-middleware)
+         (fnil into []) '[cider.nrepl/cider-middleware])
   identity)
+
+(deftask clj-refactor
+  "Add middleware for clj-refactor.
+  N.B.: This depends on the above cider middleware."
+  []
+  (require 'boot.repl)
+  (swap! boot.repl/*default-dependencies*
+         conj '[refactor-nrepl "1.0.5"])
+
+  (swap! boot.repl/*default-middleware*
+         (fnil into []) '[refactor-nrepl.middleware/wrap-refactor])
+  identity)
+
+(deftask emacs
+  "Start a repl configured for emacs dev"
+  []
+  (comp (cider) (clj-refactor) (repl)))
 
 ;; TODO: Jar, deploy, test. Production pod without dev deps
