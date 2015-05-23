@@ -44,6 +44,8 @@ that either wants that domain or is willing to take a new one and then
 start passing off to them. I.E. each crawler is intended to work on a
 bounded number of domains.
 
+How about a domain with too many pages for one crawler?
+
 An interesting question is how do we split a queue full of urls into
 one queue per domain in a fashion that 1) doesn't block fast domains
 waiting for slow ones, and 2) doesn't unnecessarily drop URLs into the
@@ -53,4 +55,6 @@ The best way I can think of as of yet is to have a bounded blocking
 queue for urls which then split by a transducer into N dropping
 queues (one per domain). This passes #1, but slow domains will drop
 urls despite there being leeway which could be stolen from faster
-domain.
+domains.
+
+I don't want to write my own buffer just yet. Let them drop initially.

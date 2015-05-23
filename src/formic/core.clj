@@ -4,7 +4,8 @@
              [robots :as robots]
              [url-filter :refer [crawl?]]
              [utils :refer [fetch]]]
-            [taoensso.timbre :as timbre]))
+            [taoensso.timbre :as timbre]
+            [clojurewerkz.urly.core :as urly]))
 
 (timbre/set-config! [:appenders :standard-out :async?] true)
 
@@ -51,52 +52,89 @@
    ;; apriori filter on urls. If you want to limit your crawl to a
    ;; fixed set of domains, here's where to do it. This fn is called
    ;; when a url is first enqueued.
-   :acceptable? nil
+   :acceptable? (constantly true)
 
    ;; This function is called with a url just before that url is to be
    ;; scrapped. Return falsy to skip it.
-   :crawl? nil
+   :crawl? (constantly true)
 
    ;; A function which takes the body of an HTML page and returns a
    ;; seqable of anchors from the page.
-   :get-links nil
+   :get-links (constantly [])
 
    ;; A channel onto which the http-response map for each page crawled
    ;; will be put!. The consumer of the channel can use it for
    ;; nothing, to make sure the same url is not crawled twice, or
    ;; anything else it dreams up.
-   :crawled-ch nil})
+   :crawled-ch (chan (async/dropping-buffer 1))})
 
-(def domain-crawlers (atom {}))
-(def domain-queues (atom {}))
+(def ^:private domain-crawlers (ref {}))
 
-(defn start-domain-fetcher
-  [{:keys [user-agent url-ch domain-ch handler
+(defn- start-domain-fetcher
+  [{:keys [user-agent url-ch handler queue-length
            crawl-delay meta-index? meta-follow?
            crawl? get-links crawled-ch]}]
-  (go-loop []
-    (let [next (<! domain-ch)]
-      (when (<! (crawl? next))
-        (let [page (<! (fetch next))]
-          (when (meta-index? agent (:body page))
-            (>! handler page)
-            (>! crawled-ch page))
-          (when (meta-follow? agent (:body page))
-            (async/onto-chan url-ch (get-links (:body page)) false))
-          (<! (async/timeout (crawl-delay user-agent next))))))
-    (recur)))
+  (let [domain-ch (chan (async/dropping-buffer queue-length))]
+    (go-loop []
+      (when-let [next (<! domain-ch)]
+        (when (<! (crawl? next))
+          (let [page (<! (fetch next))]
+            (when (meta-index? agent (:body page))
+              (>! handler page)
+              (>! crawled-ch page))
+            (when (meta-follow? agent (:body page))
+              (<! (async/onto-chan url-ch (get-links (:body page)) false)))
+            ;; TODO: Account for the time it took to make the call and
+            ;; subtract that fromthe wait.
+            (<! (async/timeout (crawl-delay user-agent next)))))
+        (recur)))
+    domain-ch))
+
+(defn- shut-down! []
+  (doseq [[k v] @domain-crawlers]
+    (async/close! v)))
+
+;; TODO: Can you generalise this to not need cleanup? I.e. ensure that
+;; the side-effectful function only ever gets called once?
+(defn get-or-set!
+  "If a channel exists for the given domain return it, otherwise
+  create a new one, store it and return it."
+  [opts domain]
+  (if-let [val (get @domain-crawlers domain)]
+            val
+            (let [new-ch (start-domain-fetcher opts domain)
+                  {:keys [retrieved? val]}
+                  (dosync
+                   (if-let [val (get (ensure domain-crawlers) domain)]
+                     {:retrieved? true :val val}
+                     {:retrieved? false
+                      :val (alter domain-crawlers assoc domain new-ch)}))]
+              (when retrieved?
+                (async/close! new-ch))
+              val)))
 
 
+(defn- smart-q!
+  [{:keys [crawlable? acceptable?] :as opts} url]
+  (when (and (crawlable? url)
+             (acceptable? url))
+    (let [domain (urly/host-of url)
+          domain-ch (get-or-set! opts domain)]
+      (put! domain-ch url)))) 
 
-(defn- crawler* [{:keys [queue-length
-                         handler
-                         ] :as opts}]
-  (let [pre-q (chan 100)]
-    (go
-      (while ()))
-
-    )
-  )
+(defn- crawler* [opts]
+  (let [pre-q (chan 100)
+        options (assoc opts :url-ch pre-q)]
+    (go-loop []
+      (if-let [url (<! pre-q)]
+        (do
+          (smart-q! options url)
+          (recur))
+        (shut-down!)))
+    (async/onto-chan pre-q (:urls options) false)
+    ;; Returning the feed ch allows the caller to add more URLs later,
+    ;; or shut down the process by closing it.
+    pre-q))
 
 (defn crawler
   "Returns a channel which will queue URLs for crawling. This should

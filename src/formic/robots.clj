@@ -7,17 +7,9 @@
   "Mapping from domain to clj-robots parsed robots.txt info"
   (atom {}))
 
-  ;; TODO: We're currently ignoring user-agent above and beyond the
-  ;; rest of the sloppiness.
 (defn ensure
   [domain]
-  
-  ;; Race condition! Worst case we fetch the robots
-  ;; file a few times in parallel and the last swap!
-  ;; wins. Given that doesn't matter and the files get
-  ;; fetched so seldom, do I care?
-  ;;
-  ;;TODO: This looks like a clear use case for STM. Look into it.
+  ;; Last one wins. This won't happen often, so the waste is minimal.
   (when (nil? (get @robot-files domain))
     (swap! robot-files domain
            (robots/parse
