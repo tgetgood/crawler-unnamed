@@ -1,35 +1,35 @@
 (ns formic.robots
-  (:require [org.httpkit.client :as http]
+  (:require [clj-robots.core :as robots]
             [clojurewerkz.urly.core :as urly]
-            [clj-robots.core :as robots]))
+            [org.httpkit.client :as http]))
 
 (def ^:private robot-files
   "Mapping from domain to clj-robots parsed robots.txt info"
   (atom {}))
 
-(defn ensure
+(defn get-robots
   [domain]
   ;; Last one wins. This won't happen often, so the waste is minimal.
   (when (nil? (get @robot-files domain))
-    (swap! robot-files domain
+    (swap! robot-files assoc domain
            (robots/parse
             (:body
+             ;; TODO: Send the user-agent on this request as well
              ;; Asymptotically 0 blocking calls... Evil?
              @(http/get (str "http://"
                              domain
-                             "/robots.txt")))))))
+                             "/robots.txt"))))))
+  (get @robot-files domain))
 
 (defn crawlable? [user-agent url]
   (let [domain (urly/host-of url)]
-          (ensure domain)
-          (robots/crawlable? (get @robot-files domain)
+          (robots/crawlable? (get-robots domain)
                              (urly/path-of url)
                              :user-agent user-agent)))
 
 (defn crawl-delay [user-agent url default]
   (let [domain (urly/host-of url)]
-    (ensure domain)
-    (or (:crawl-delay (get @robot-files domain)) default)))
+    (or (:crawl-delay (get-robots domain)) default)))
 
 (defn meta-index?
   [user-agent page]

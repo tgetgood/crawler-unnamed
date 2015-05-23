@@ -1,5 +1,6 @@
 (ns formic.utils
   (require [org.httpkit.client :as http]
+           [taoensso.timbre :refer [log]]
            [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]))
 
 
@@ -43,5 +44,7 @@
   "Asynchronously fetches URL and places response map on res-ch"
   [url]
   (let [res (chan)]
+    
+    ;;TODO: Send user agent with request.
     (http/get url (fn [x] (put! res x) (async/close! res)))
     res))

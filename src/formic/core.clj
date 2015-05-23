@@ -1,9 +1,7 @@
 (ns formic.core
   (:require [clojure.core.async :as async :refer [<! >! chan go go-loop put!]]
-            [formic
-             [robots :as robots]
-             [url-filter :refer [crawl?]]
-             [utils :refer [fetch]]]
+            [formic.robots :as robots]
+            [formic.utils :refer [fetch]]
             [taoensso.timbre :as timbre]
             [clojurewerkz.urly.core :as urly]))
 
@@ -56,11 +54,11 @@
 
    ;; This function is called with a url just before that url is to be
    ;; scrapped. Return falsy to skip it.
-   :crawl? (constantly true)
+   :crawl? (fn [x] (let [ch (chan)] (put! ch true) ch))
 
    ;; A function which takes the body of an HTML page and returns a
    ;; seqable of anchors from the page.
-   :get-links (constantly [])
+   :get-links (fn [& args] (timbre/log :info "gimme-links") [])
 
    ;; A channel onto which the http-response map for each page crawled
    ;; will be put!. The consumer of the channel can use it for
@@ -73,10 +71,11 @@
 (defn- start-domain-fetcher
   [{:keys [user-agent url-ch handler queue-length
            crawl-delay meta-index? meta-follow?
-           crawl? get-links crawled-ch]}]
+           crawl? get-links crawled-ch default-crawl-delay]}]
   (let [domain-ch (chan (async/dropping-buffer queue-length))]
     (go-loop []
       (when-let [next (<! domain-ch)]
+        (println next)
         (when (<! (crawl? next))
           (let [page (<! (fetch next))]
             (when (meta-index? agent (:body page))
@@ -86,11 +85,13 @@
               (<! (async/onto-chan url-ch (get-links (:body page)) false)))
             ;; TODO: Account for the time it took to make the call and
             ;; subtract that fromthe wait.
-            (<! (async/timeout (crawl-delay user-agent next)))))
+            (<! (async/timeout (crawl-delay user-agent next
+                                            default-crawl-delay)))))
         (recur)))
     domain-ch))
 
 (defn- shut-down! []
+  (timbre/log :info "Shutting down domain-crawlers") 
   (doseq [[k v] @domain-crawlers]
     (async/close! v)))
 
@@ -102,32 +103,36 @@
   [opts domain]
   (if-let [val (get @domain-crawlers domain)]
             val
-            (let [new-ch (start-domain-fetcher opts domain)
+            (let [new-ch (start-domain-fetcher opts)
                   {:keys [retrieved? val]}
                   (dosync
                    (if-let [val (get (ensure domain-crawlers) domain)]
                      {:retrieved? true :val val}
                      {:retrieved? false
-                      :val (alter domain-crawlers assoc domain new-ch)}))]
+                      :val (get (alter domain-crawlers assoc domain new-ch)
+                                domain)}))]
               (when retrieved?
                 (async/close! new-ch))
               val)))
 
-
 (defn- smart-q!
-  [{:keys [crawlable? acceptable?] :as opts} url]
-  (when (and (crawlable? url)
+  [{:keys [crawlable? acceptable? user-agent] :as opts} url]
+  (when (and (crawlable? user-agent url)
              (acceptable? url))
     (let [domain (urly/host-of url)
           domain-ch (get-or-set! opts domain)]
       (put! domain-ch url)))) 
 
 (defn- crawler* [opts]
-  (let [pre-q (chan 100)
-        options (assoc opts :url-ch pre-q)]
+  (assert (every? fn? ((juxt :acceptable? :crawl? :get-links 
+                             :crawlable? :crawl-delay :meta-index?
+                             :meta-follow?) opts)))
+ (let [pre-q (chan 100)
+       options (assoc opts :url-ch pre-q)]
     (go-loop []
       (if-let [url (<! pre-q)]
         (do
+          (println "smarting")
           (smart-q! options url)
           (recur))
         (shut-down!)))
@@ -140,12 +145,11 @@
   "Returns a channel which will queue URLs for crawling. This should
   be used for (re)seeding the search."
   [opts]
-  (assert (:user-agent opts))
-  (assert (:handler opts))
+  (assert (:user-agent opts) "A crawler must define a user-agent")
+  (assert (:handler opts)
+          "You haven't defined a crawler, any work done will be wasted.")
   (assert (and (coll? (:urls opts)) (not-empty (:urls opts))))
-  (assert (every? fn? (juxt [:acceptable? :crawl? :get-links :crawled-ch
-                             :crawlable? :crawl-delay :meta-index?
-                             :meta-follow?] opts)))
+  
   (let [options (merge default-options opts)]
     (crawler* options)))
 
