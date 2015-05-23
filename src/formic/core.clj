@@ -1,7 +1,16 @@
 (ns formic.core
+  (:import [com.codahale.metrics MetricFilter])
   (:require [clojure.core.async :as async :refer [<! >! chan go go-loop put!]]
             [formic.robots :as robots]
             [formic.utils :refer [fetch]]
+            [formic.links :refer [extract-followable-links]]
+
+            [metrics.core :refer [new-registry]]
+            [metrics.gauges :refer [gauge-fn]]
+            [metrics.counters :refer [counter inc! dec!]]
+            [metrics.reporters.console :as console]
+            [metrics.meters :refer [defmeter mark!]]
+
             [taoensso.timbre :as timbre]
             [clojurewerkz.urly.core :as urly]))
 
@@ -58,7 +67,7 @@
 
    ;; A function which takes the body of an HTML page and returns a
    ;; seqable of anchors from the page.
-   :get-links (fn [& args] (timbre/log :info "gimme-links") [])
+   :get-links extract-followable-links
 
    ;; A channel onto which the http-response map for each page crawled
    ;; will be put!. The consumer of the channel can use it for
@@ -68,31 +77,55 @@
 
 (def ^:private domain-crawlers (ref {}))
 
+(def reg (new-registry))
+
+(defmeter reg smarties)
+
+(def active-domains (gauge-fn reg "Domains being crawled"
+                              #(count @domain-crawlers)))
+
+(defonce reporter
+  (let [CR (console/reporter reg {:filter MetricFilter/ALL})]
+    (console/start CR 20)))
+
+(def test-opts {:user-agent "testy-crawl" :handler (chan (async/dropping-buffer 10)) :urls ["http://allafrica.com/stories/201505220927.html"]})
+
 (defn- start-domain-fetcher
   [{:keys [user-agent url-ch handler queue-length
            crawl-delay meta-index? meta-follow?
-           crawl? get-links crawled-ch default-crawl-delay]}]
-  (let [domain-ch (chan (async/dropping-buffer queue-length))]
+           crawl? get-links crawled-ch default-crawl-delay]}
+   domain]
+  (let [counter (counter reg (str domain " queue size"))
+        in-ch (chan)
+        domain-ch (chan (async/dropping-buffer queue-length))]
+    (go-loop []
+      (if-let [v (<! in-ch)]
+        (do
+          (inc! counter)
+          (>! domain-ch v))
+        (async/close! domain-ch)))
     (go-loop []
       (when-let [next (<! domain-ch)]
-        (println next)
+        (dec! counter)
         (when (<! (crawl? next))
           (let [page (<! (fetch next))]
             (when (meta-index? agent (:body page))
               (>! handler page)
               (>! crawled-ch page))
             (when (meta-follow? agent (:body page))
-              (<! (async/onto-chan url-ch (get-links (:body page)) false)))
+              (<! (async/onto-chan url-ch (get-links (:body page) next) false)))
             ;; TODO: Account for the time it took to make the call and
             ;; subtract that fromthe wait.
             (<! (async/timeout (crawl-delay user-agent next
                                             default-crawl-delay)))))
         (recur)))
-    domain-ch))
+    in-ch))
 
 (defn- shut-down! []
   (timbre/log :info "Shutting down domain-crawlers") 
   (doseq [[k v] @domain-crawlers]
+    ;;TODO: Do I have to drain these channels to let the crawler shut
+    ;;down quickly?
     (async/close! v)))
 
 ;; TODO: Can you generalise this to not need cleanup? I.e. ensure that
@@ -103,7 +136,7 @@
   [opts domain]
   (if-let [val (get @domain-crawlers domain)]
             val
-            (let [new-ch (start-domain-fetcher opts)
+            (let [new-ch (start-domain-fetcher opts domain)
                   {:keys [retrieved? val]}
                   (dosync
                    (if-let [val (get (ensure domain-crawlers) domain)]
@@ -119,6 +152,7 @@
   [{:keys [crawlable? acceptable? user-agent] :as opts} url]
   (when (and (crawlable? user-agent url)
              (acceptable? url))
+    (mark! smarties)
     (let [domain (urly/host-of url)
           domain-ch (get-or-set! opts domain)]
       (put! domain-ch url)))) 
@@ -132,7 +166,6 @@
     (go-loop []
       (if-let [url (<! pre-q)]
         (do
-          (println "smarting")
           (smart-q! options url)
           (recur))
         (shut-down!)))
