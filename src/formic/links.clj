@@ -47,7 +47,7 @@
   (extract-urls-from-anchors (extract-anchor-elements body) uri))
 
 (defn extract-followable-links
-  "Returns set of URLs not marked \"nofollow\" linked from page."
+  "Returns set of URLs not marked \"nofollow\" linked to from page."
   [body uri]
   (extract-urls-from-anchors
    (filter followable? (extract-anchor-elements body))
