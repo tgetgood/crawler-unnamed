@@ -20,9 +20,6 @@
   {;; Crawler user agent. Required
    :user-agent nil
    
-   ;; Seed URLs for crawl. Required
-   :urls nil 
-
    ;; A channel on which to put crawled pages. Required
    :handler nil
 
@@ -87,7 +84,8 @@
   (let [CR (console/reporter {:filter MetricFilter/ALL})]
     (console/start CR 20)))
 
-(def test-opts {:user-agent "testy-crawl" :handler (chan (async/dropping-buffer 10)) :urls ["http://allafrica.com/stories/201505220927.html"]})
+(def test-opts {:user-agent "testy-crawl"
+                :handler (chan (async/dropping-buffer 10)) })
 
 (defn- start-domain-fetcher
   [{:keys [user-agent url-ch handler queue-length
@@ -101,22 +99,27 @@
       (if-let [v (<! in-ch)]
         (do
           (inc! counter)
-          (>! domain-ch v))
+          (>! domain-ch v)
+          (recur))
         (async/close! domain-ch)))
     (go-loop []
       (when-let [next (<! domain-ch)]
         (dec! counter)
-        (when (<! (crawl? next))
-          (let [page (<! (fetch next))]
-            (when (meta-index? agent (:body page))
-              (>! handler page)
-              (>! crawled-ch page))
-            (when (meta-follow? agent (:body page))
-              (<! (async/onto-chan url-ch (get-links (:body page) next) false)))
-            ;; TODO: Account for the time it took to make the call and
-            ;; subtract that fromthe wait.
+        (let [next-crawl (chan)]
+          (go
+            ;; Time the next crawl delay independently of how it takes
+            ;; to decide whether or not to crawl this one.
             (<! (async/timeout (crawl-delay user-agent next
-                                            default-crawl-delay)))))
+                                              default-crawl-delay)))
+              (>! next-crawl true))
+          (when (<! (crawl? next))
+            (let [page (<! (fetch next))]
+              (when (meta-index? agent (:body page))
+                (>! handler page)
+                (>! crawled-ch page))
+              (when (meta-follow? agent (:body page))
+                (<! (async/onto-chan url-ch (get-links (:body page) next) false)))
+              (<! next-crawl))))
         (recur)))
     in-ch))
 
@@ -167,9 +170,6 @@
           (smart-q! options url)
           (recur))
         (shut-down!)))
-    (async/onto-chan pre-q (:urls options) false)
-    ;; Returning the feed ch allows the caller to add more URLs later,
-    ;; or shut down the process by closing it.
     pre-q))
 
 (defn crawler
@@ -179,7 +179,6 @@
   (assert (:user-agent opts) "A crawler must define a user-agent")
   (assert (:handler opts)
           "You haven't defined a crawler, any work done will be wasted.")
-  (assert (and (coll? (:urls opts)) (not-empty (:urls opts))))
   
   (let [options (merge default-options opts)]
     (crawler* options)))
