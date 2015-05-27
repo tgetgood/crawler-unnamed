@@ -77,15 +77,14 @@
 
 (def ^:private domain-crawlers (ref {}))
 
-(def reg (new-registry))
 
-(defmeter reg smarties)
+(defmeter incoming-url)
 
-(def active-domains (gauge-fn reg "Domains being crawled"
+(def active-domains (gauge-fn "Domains being crawled"
                               #(count @domain-crawlers)))
 
 (defonce reporter
-  (let [CR (console/reporter reg {:filter MetricFilter/ALL})]
+  (let [CR (console/reporter {:filter MetricFilter/ALL})]
     (console/start CR 20)))
 
 (def test-opts {:user-agent "testy-crawl" :handler (chan (async/dropping-buffer 10)) :urls ["http://allafrica.com/stories/201505220927.html"]})
@@ -95,7 +94,7 @@
            crawl-delay meta-index? meta-follow?
            crawl? get-links crawled-ch default-crawl-delay]}
    domain]
-  (let [counter (counter reg (str domain " queue size"))
+  (let [counter (counter (str domain " queue size"))
         in-ch (chan)
         domain-ch (chan (async/dropping-buffer queue-length))]
     (go-loop []
@@ -124,9 +123,8 @@
 (defn- shut-down! []
   (timbre/log :info "Shutting down domain-crawlers") 
   (doseq [[k v] @domain-crawlers]
-    ;;TODO: Do I have to drain these channels to let the crawler shut
-    ;;down quickly?
-    (async/close! v)))
+    (async/close! v)
+    (go (while (<! v)))))
 
 ;; TODO: Can you generalise this to not need cleanup? I.e. ensure that
 ;; the side-effectful function only ever gets called once?
@@ -152,7 +150,7 @@
   [{:keys [crawlable? acceptable? user-agent] :as opts} url]
   (when (and (crawlable? user-agent url)
              (acceptable? url))
-    (mark! smarties)
+    (mark! incoming-url)
     (let [domain (urly/host-of url)
           domain-ch (get-or-set! opts domain)]
       (put! domain-ch url)))) 

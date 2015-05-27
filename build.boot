@@ -3,7 +3,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def dependencies
-  '[[org.clojure/clojure "1.7.0-alpha5"]
+  '[[org.clojure/clojure "1.7.0-beta2"]
     [org.clojure/core.async "0.1.346.0-17112a-alpha"]
     
     [org.jsoup/jsoup "1.8.1"]
@@ -21,6 +21,7 @@
   '[[org.clojure/tools.nrepl "0.2.7"]
     [org.clojure/tools.namespace "0.2.10"]
 
+    [http-kit.fake "0.2.1"]
     [org.clojure/test.check "0.7.0"]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

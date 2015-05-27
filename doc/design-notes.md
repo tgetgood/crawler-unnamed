@@ -58,3 +58,16 @@ urls despite there being leeway which could be stolen from faster
 domains.
 
 I don't want to write my own buffer just yet. Let them drop initially.
+
+## Notes
+
+Wouldn't it be swell the crawler function set up all the pipes, and
+did nothing but return a channel? Any urls put on the channel would
+initiate a crawl loop. The crawler itself wouldn't recrawl urls
+(unless it comes back across them and the crawl? fn accepts them.
+
+If we're going that far, why not encapsulate a crawler as an object
+that satisfies a slew of protocols and return that object? Advantages?
+disadvantages? Will these abstractions (we'll need something like 10
+of them) ad expressive power? Simplify the system? Or will they just
+tack on the labourious parts of OO?
