@@ -7,7 +7,6 @@
 
             [metrics.core :refer [new-registry]]
             [metrics.gauges :refer [gauge-fn]]
-            [metrics.counters :refer [counter inc! dec!]]
             [metrics.reporters.console :as console]
             [metrics.meters :refer [defmeter mark!]]
 
@@ -84,27 +83,37 @@
   (let [CR (console/reporter {:filter MetricFilter/ALL})]
     (console/start CR 20)))
 
+(defn domain-filter [& domains]
+  (let [dset (into #{} (map urly/host-of domains))]
+    (fn [url]
+      (contains? dset (urly/host-of url)))))
+
 (def test-opts {:user-agent "testy-crawl"
-                :handler (chan (async/dropping-buffer 10)) })
+                :handler (chan (async/dropping-buffer 10))
+                :acceptable? (domain-filter "http://allafrica.com")})
+
+(def counts (atom {}))
+
+(def queue-sizes
+  (gauge-fn "Domain Queue Sizes" (fn [] @counts)))
 
 (defn- start-domain-fetcher
   [{:keys [user-agent url-ch handler queue-length
            crawl-delay meta-index? meta-follow?
            crawl? get-links crawled-ch default-crawl-delay]}
    domain]
-  (let [counter (counter (str domain " queue size"))
-        in-ch (chan)
+  (let [in-ch (chan)
         domain-ch (chan (async/dropping-buffer queue-length))]
     (go-loop []
       (if-let [v (<! in-ch)]
         (do
-          (inc! counter)
+          (swap! counts update domain (fnil inc 0))
           (>! domain-ch v)
           (recur))
         (async/close! domain-ch)))
     (go-loop []
       (when-let [next (<! domain-ch)]
-        (dec! counter)
+        (swap! counts update domain dec)
         (let [next-crawl (chan)]
           (go
             ;; Time the next crawl delay independently of how it takes
@@ -178,7 +187,7 @@
   [opts]
   (assert (:user-agent opts) "A crawler must define a user-agent")
   (assert (:handler opts)
-          "You haven't defined a crawler, any work done will be wasted.")
+          "You haven't defined a handler, any work done will be wasted.")
   
   (let [options (merge default-options opts)]
     (crawler* options)))

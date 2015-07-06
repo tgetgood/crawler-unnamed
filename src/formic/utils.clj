@@ -4,6 +4,7 @@
            [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]))
 
 
+(ser/with-channel)
 ;;;;;
 ;; core.async utility functions
 ;;;;;
