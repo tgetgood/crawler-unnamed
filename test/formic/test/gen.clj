@@ -1,4 +1,4 @@
-(ns formic.gens
+(ns formic.test.gen
   (:require [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :refer [for-all]]

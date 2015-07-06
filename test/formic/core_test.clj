@@ -3,11 +3,8 @@
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :refer [for-all]]
-            [formic.gens :refer [url]]
-
-            [org.httpkit.client :as http]
-            [org.httpkit.fake :refer [with-fake-http]]
-            [clojure.core.async :as async :refer [put! chan]]
+            [formic.test.gen :refer [url]]
+            [formic.test.util :refer [fake-fetch]]
 
             [clojure.string :as string] 
 
@@ -29,8 +26,5 @@
   (gen/fmap make-graph
             (gen/vector url)))
 
-(defn fake-fetch [url]
-  (let [res (chan)]
-    (with-fake-http [(constantly true) "sold!"]
-      (http/get url (fn [x] (put! res x) (async/close! res))))
-    res))
+
+
