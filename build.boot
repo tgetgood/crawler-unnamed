@@ -3,8 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def dependencies
-  '[[org.clojure/clojure "1.7.0-beta2"]
-    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+  '[[org.clojure/clojure "1.7.0"]
+    [org.clojure/core.async "0.2.374"]
     
     [org.jsoup/jsoup "1.8.1"]
     [clojurewerkz/urly "1.0.0"]
@@ -54,7 +54,7 @@
   []
   (require 'boot.repl)
   (swap! boot.repl/*default-dependencies*
-         conj '[cider/cider-nrepl "0.8.2"])
+         conj '[cider/cider-nrepl "0.9.1"])
 
   (swap! boot.repl/*default-middleware*
          (fnil into []) '[cider.nrepl/cider-middleware])
@@ -66,7 +66,7 @@
   []
   (require 'boot.repl)
   (swap! boot.repl/*default-dependencies*
-         conj '[refactor-nrepl "1.0.5"])
+         conj '[refactor-nrepl "1.1.0"])
 
   (swap! boot.repl/*default-middleware*
          (fnil into []) '[refactor-nrepl.middleware/wrap-refactor])
@@ -78,3 +78,5 @@
   (comp (cider) (clj-refactor) (repl)))
 
 ;; TODO: Jar, deploy, test. Production pod without dev deps
+
+;; TODO: There's no good reason to use boot over lein in this project.

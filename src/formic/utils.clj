@@ -4,7 +4,6 @@
            [clojure.core.async :as async :refer [>! <! put! go chan go-loop]]))
 
 
-(ser/with-channel)
 ;;;;;
 ;; core.async utility functions
 ;;;;;
@@ -43,9 +42,5 @@
 
 (defn fetch
   "Asynchronously fetches URL and places response map on res-ch"
-  [url]
-  (let [res (chan)]
-    
-    ;;TODO: Send user agent with request.
-    (http/get url (fn [x] (put! res x) (async/close! res)))
-    res))
+  [url res]
+  (http/get url (fn [x] (put! res x) (async/close! res))))
